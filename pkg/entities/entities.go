@@ -6,17 +6,26 @@ import (
 	"mmo-tower-defense/pkg/terminal"
 )
 
+type SnakeStatus int
+
+const (
+	SNAKE_ALIVE  = 0
+	SNAKE_DIEING = 1
+	SNAKE_DEAD   = 2
+)
+
 type Snake struct {
-	Color     string
-	Location  maths.Vec2
-	Direction maths.Vec2
-	Length    int
-	Path      []maths.Vec2
-	Alive     bool
+	Color       string
+	Location    maths.Vec2
+	Direction   maths.Vec2
+	Length      int
+	Path        []maths.Vec2
+	Status      SnakeStatus
+	DeadCounter int
 }
 
 func (s Snake) GetColor() string {
-	if s.Alive {
+	if s.Status == SNAKE_ALIVE {
 		return s.Color
 	}
 
@@ -43,7 +52,7 @@ func (s Snake) GetTail() string {
 }
 
 func (s *Snake) Tick(occupied map[maths.Vec2]bool, size int) maths.Vec2 {
-	if s.Alive == false {
+	if s.Status == SNAKE_DIEING || s.Status == SNAKE_DEAD {
 		// @TODO: This feels "wrong", find a better way, should this even return a maths.Vec2?
 		return maths.Vec2{X: -1, Y: -1}
 	}
@@ -54,7 +63,7 @@ func (s *Snake) Tick(occupied map[maths.Vec2]bool, size int) maths.Vec2 {
 	}
 
 	if occupied[destination] {
-		s.Alive = false
+		s.Status = SNAKE_DIEING
 	} else {
 		s.Path = append([]maths.Vec2{s.Location}, s.Path[:min(len(s.Path), s.Length-1)]...)
 		s.Location = destination
@@ -64,5 +73,5 @@ func (s *Snake) Tick(occupied map[maths.Vec2]bool, size int) maths.Vec2 {
 }
 
 func (s Snake) Debug() string {
-	return fmt.Sprintf("Snake{location: %+v, direction: %+v, length: %d, path: %+v, alive: %t}", s.Location, s.Direction, s.Length, s.Path, s.Alive)
+	return fmt.Sprintf("Snake{location: %+v, direction: %+v, length: %d, path: %+v, status: %v}", s.Location, s.Direction, s.Length, s.Path, s.Status)
 }

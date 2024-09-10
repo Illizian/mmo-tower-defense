@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"mmo-tower-defense/pkg/entities"
 	"mmo-tower-defense/pkg/maths"
@@ -16,7 +19,6 @@ import (
 )
 
 func main() {
-	done := make(chan bool)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -29,15 +31,17 @@ func main() {
 	ssh.Handle(func(s ssh.Session) {
 		addr := s.RemoteAddr()
 		fmt.Printf("[%s] Client Connected\n", addr)
+		closed := make(chan bool, 1)
 
 		s.Write([]byte(terminal.CursorHide))
 		snek := entities.Snake{
-			Color:     terminal.Green,
-			Location:  maths.NewRandomVec2(0, size),
-			Direction: maths.East,
-			Length:    3,
-			Path:      make([]maths.Vec2, 0),
-			Alive:     true,
+			Color:       terminal.Green,
+			Location:    maths.NewRandomVec2(0, size-1),
+			Direction:   maths.East,
+			Length:      3,
+			Path:        make([]maths.Vec2, 0),
+			Status:      entities.SNAKE_ALIVE,
+			DeadCounter: 0,
 		}
 
 		snakes = append(snakes, &snek)
@@ -61,9 +65,13 @@ func main() {
 				switch buf[0] {
 				case 3: // Ctrl-c
 					fmt.Printf("[%s] Client Disconnected\n", addr)
-					snek.Alive = false
+					if snek.Status == entities.SNAKE_ALIVE {
+						snek.Status = entities.SNAKE_DIEING
+					}
+
 					s.Write([]byte(terminal.CursorShow))
 					s.Exit(0)
+					closed <- true
 					return
 				case 119: // W
 					snek.Direction = maths.North
@@ -80,14 +88,24 @@ func main() {
 		go func() {
 			for {
 				select {
+				case <-closed:
+					return
 				case <-ctx.Done():
 					s.Write([]byte(fmt.Sprintf("%s%sServer shutting down... Goodbye!", terminal.ClearScreen, terminal.ResetCursor)))
 					s.Exit(0)
 					return
 				case <-framer.C:
 					s.Write([]byte(fmt.Sprintf(terminal.ClearScreen + terminal.ResetCursor)))
-					// @TODO: Should probably only render once, and share with everyone! Can we just pipe in a channel? From the renderer?
-					s.Write([]byte(renderer.Render(snakes, pip, size)))
+
+					if snek.Status != entities.SNAKE_ALIVE {
+						s.Write([]byte(fmt.Sprintf("You DED - Your score: %d", snek.Length-3)))
+					}
+
+					if snek.Status == entities.SNAKE_ALIVE || snek.Status == entities.SNAKE_DEAD {
+						// @TODO: Should probably only render once, and share with everyone! Can we just pipe in a channel? From the renderer?
+						s.Write([]byte(renderer.Render(snakes, pip, size)))
+					}
+
 					break
 				}
 			}
@@ -105,8 +123,11 @@ func main() {
 				// create an map of occupied tiles
 				occupied := make(map[maths.Vec2]bool)
 				for _, snake := range snakes {
-					occupied[snake.Location] = true
+					if snake.Status == entities.SNAKE_DEAD {
+						continue
+					}
 
+					occupied[snake.Location] = true
 					for _, tail := range snake.Path {
 						occupied[tail] = true
 					}
@@ -114,6 +135,18 @@ func main() {
 
 				// Tick each snake with the generated occupied for collisions
 				for s := range snakes {
+					if snakes[s].Status == entities.SNAKE_DIEING {
+						snakes[s].DeadCounter++
+						if snakes[s].DeadCounter == 10 {
+							snakes[s].Status = entities.SNAKE_DEAD
+						}
+						continue
+					}
+
+					if snakes[s].Status == entities.SNAKE_DEAD {
+						continue
+					}
+
 					location := snakes[s].Tick(occupied, size)
 					if location.Eq(pip) {
 						snakes[s].Length += 1
@@ -121,18 +154,18 @@ func main() {
 					}
 				}
 
-				// fmt.Printf(terminal.ClearScreen + terminal.ResetCursor)
-				// fmt.Println(renderer.Render(snakes, pip, size))
-
 				break
 			}
 		}
 	}(ctx)
 
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
 	fmt.Println("Serving connections on :2048")
 	go ssh.ListenAndServe(":2048", nil, ssh.HostKeyFile("./keys/id_rsa"))
 
-	<-done
+	<-c
 
 	fmt.Println("SSH server shutting down...")
 }
