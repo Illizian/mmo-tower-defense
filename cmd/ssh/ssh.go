@@ -103,6 +103,7 @@ func main() {
 
 					if snek.Status == entities.SNAKE_ALIVE || snek.Status == entities.SNAKE_DEAD {
 						// @TODO: Should probably only render once, and share with everyone! Can we just pipe in a channel? From the renderer?
+						// @NOTE: Whilst we share a main render, we still need to be able to personalise the render...
 						s.Write([]byte(renderer.Render(snakes, pip, size)))
 					}
 
