@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mmo-tower-defense/pkg/terminal"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func (s Spawner) Tick() {
 }
 
 func (s Spawner) Label() string {
-	return Magenta + "●" + Reset
+	return terminal.Magenta + "●" + terminal.Reset
 }
 
 type Creep struct {
@@ -45,7 +46,7 @@ func (c Creep) Tick() {
 }
 
 func (c Creep) Label() string {
-	return Red + "*" + Reset
+	return terminal.Red + "*" + terminal.Reset
 }
 
 type Shrine struct {
@@ -63,7 +64,7 @@ func (s Shrine) Tick() {
 }
 
 func (s Shrine) Label() string {
-	return Cyan + "@" + Reset
+	return terminal.Cyan + "@" + terminal.Reset
 }
 
 // type Cell struct {
@@ -166,11 +167,11 @@ func main() {
 	entities = append(entities, Shrine{Row: 8, Col: 4, Health: 100})
 
 	defer func() {
-		fmt.Printf(Reset + ClearScreen + ResetCursor + CursorShow)
+		fmt.Printf(terminal.Reset + terminal.ClearScreen + terminal.ResetCursor + terminal.CursorShow)
 		fmt.Println("Exiting...")
 	}()
 
-	fmt.Print(CursorHide)
+	fmt.Print(terminal.CursorHide)
 
 	go func() {
 		for {
@@ -182,7 +183,7 @@ func main() {
 				// 	}
 				// }
 
-				fmt.Printf(ClearScreen + ResetCursor)
+				fmt.Printf(terminal.ClearScreen + terminal.ResetCursor)
 				fmt.Printf(render(entities, 0, 10, 0, 10))
 				// 			fmt.Print(render + "\n")
 				// 			fmt.Printf("{%d}:{%d}, {%d}:{%d}\n", minRow, maxRow, minCol, maxCol)
