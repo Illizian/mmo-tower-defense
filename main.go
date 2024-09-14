@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"mmo-tower-defense/pkg/entities"
@@ -30,11 +31,33 @@ func main() {
 
 	ssh.Handle(func(s ssh.Session) {
 		addr := s.RemoteAddr()
-		fmt.Printf("[%s] Client Connected\n", addr)
-		closed := make(chan bool, 1)
+		user := s.User()
+		if user == "" {
+			s.Write([]byte("You must provide a username e.g. username@hostname"))
+			s.Exit(0)
+		}
 
-		s.Write([]byte(terminal.CursorHide))
+		fmt.Printf("[%s] Client Connected as %s\n", addr, user)
+
+		// Show a splash screen for 5 seconds
+		splash := time.NewTimer(5 * time.Second)
+		s.Write([]byte(fmt.Sprintf(terminal.ClearScreen + terminal.ResetCursor + terminal.CursorHide)))
+		s.Write([]byte(
+			strings.Join(
+				[]string{
+					fmt.Sprintf("Welcome to Snek, %s! Good luck", user),
+					"In a moment you will see the level, you can use W/A/S/D to change direction.",
+					"Do NOT crash into other Sneks, collect the pips to increase your score and the length of your snake",
+				},
+				"\n\r",
+			)))
+		<-splash.C
+
+		// Setup Player's Snake
+		done := make(chan bool, 1)
+		s.Write([]byte(fmt.Sprintf(terminal.ClearScreen + terminal.ResetCursor)))
 		snek := entities.Snake{
+			Label:       user,
 			Color:       terminal.Green,
 			Location:    maths.NewRandomVec2(0, size-1),
 			Direction:   maths.East,
@@ -46,9 +69,8 @@ func main() {
 
 		snakes = append(snakes, &snek)
 
-		framer := time.NewTicker(50 * time.Millisecond)
+		// Setup Reader for PTY's STDIN
 		reader, writer := io.Pipe()
-
 		go func() {
 			buf := make([]byte, 256)
 			for {
@@ -71,7 +93,7 @@ func main() {
 
 					s.Write([]byte(terminal.CursorShow))
 					s.Exit(0)
-					closed <- true
+					done <- true
 					return
 				case 119: // W
 					snek.Direction = maths.North
@@ -85,16 +107,18 @@ func main() {
 			}
 		}()
 
+		// Setup rendering pipeline frame ticker
+		frame := time.NewTicker(50 * time.Millisecond)
 		go func() {
 			for {
 				select {
-				case <-closed:
+				case <-done:
 					return
 				case <-ctx.Done():
 					s.Write([]byte(fmt.Sprintf("%s%sServer shutting down... Goodbye!", terminal.ClearScreen, terminal.ResetCursor)))
 					s.Exit(0)
 					return
-				case <-framer.C:
+				case <-frame.C:
 					s.Write([]byte(fmt.Sprintf(terminal.ClearScreen + terminal.ResetCursor)))
 
 					if snek.Status != entities.SNAKE_ALIVE {
@@ -115,6 +139,9 @@ func main() {
 		io.Copy(writer, s)
 	})
 
+	//
+	// GAME LOOP
+	//
 	go func(ctx context.Context) {
 		for {
 			select {

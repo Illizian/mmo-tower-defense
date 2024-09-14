@@ -15,6 +15,7 @@ const (
 )
 
 type Snake struct {
+	Label       string
 	Color       string
 	Location    maths.Vec2
 	Direction   maths.Vec2
@@ -73,5 +74,5 @@ func (s *Snake) Tick(occupied map[maths.Vec2]bool, size int) maths.Vec2 {
 }
 
 func (s Snake) Debug() string {
-	return fmt.Sprintf("Snake{location: %+v, direction: %+v, length: %d, path: %+v, status: %v}", s.Location, s.Direction, s.Length, s.Path, s.Status)
+	return fmt.Sprintf("Snake{label: %s, location: %+v, direction: %+v, length: %d, path: %+v, status: %v}", s.Label, s.Location, s.Direction, s.Length, s.Path, s.Status)
 }
