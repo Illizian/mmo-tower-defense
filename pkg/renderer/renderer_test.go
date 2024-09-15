@@ -11,8 +11,6 @@ import (
 )
 
 func TestSimpleRender(t *testing.T) {
-	assert.True(t, true, "True is true!")
-
 	size := 3
 	pip := maths.NewVec2(0, 0)
 	snakes := []*entities.Snake{
