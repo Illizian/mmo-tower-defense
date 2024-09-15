@@ -10,6 +10,10 @@ func (aabb AABB) Contains(vec Vec2) bool {
 		vec.Y >= aabb.A.Y && vec.Y <= aabb.B.Y)
 }
 
+func (aabb AABB) Len() int {
+	return (aabb.B.X - aabb.A.X) * (aabb.B.Y - aabb.A.Y)
+}
+
 func NewAABB(a, b Vec2) AABB {
 	return AABB{
 		A: a,

@@ -32,3 +32,9 @@ func TestAABBContainsVector(t *testing.T) {
 	assert.False(t, NewAABB(NewVec2(0, 0), NewVec2(3, 3)).Contains(NewVec2(2, -1)))
 	assert.False(t, NewAABB(NewVec2(0, 0), NewVec2(3, 3)).Contains(NewVec2(5, 5)))
 }
+
+func TestAABBLength(t *testing.T) {
+	assert.Equal(t, 9, NewAABB(NewVec2(0, 0), NewVec2(3, 3)).Len())
+	assert.Equal(t, 25, NewAABB(NewVec2(0, 0), NewVec2(5, 5)).Len())
+	assert.Equal(t, 100, NewAABB(NewVec2(0, 0), NewVec2(10, 10)).Len())
+}
